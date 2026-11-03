@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<macros>
+
+    <token name="@TOOL_VERSION@">1.0.0</token>
+    <token name="@WRAPPER_VERSION@">0</token>
+
+    <xml name="requirements">
+        <requirements>
+            <requirement type="package" version="2.1.0">pandas</requirement>
+            <requirement type="package" version="1.26.0">numpy</requirement>
+            <requirement type="package" version="1.3.0">scikit-learn</requirement>
+            <requirement type="package" version="2.12">pydantic</requirement>
+            <requirement type="package" version="3.10.9">matplotlib</requirement>
+            <requirement type="package" version="0.13.2">seaborn</requirement>
+        </requirements>
+    </xml>
+
+    <xml name="stdio">
+        <stdio>
+            <exit_code range="1:" level="fatal" />
+        </stdio>
+    </xml>
+
+
+    <xml name="macro_n_repeats">
+        <param name="nRepeats" type="integer" value="1" min="1" label="Number of repeats" help="Number of times the ML process is repeated" />
+    </xml>
+
+    <xml name="macro_super_test">
+        <conditional name="superTestCond">
+            <param name="superTestMode" type="select" label="Step 2 — External Validation Set" help="Reserve samples for independent external validation before the main split" refresh_on_change="true">
+                <option value="none" selected="true">No external validation</option>
+                <option value="manual">Manual : Select external validation set (list IDs)</option>
+                <option value="stratified">Automatic : Stratified selection of external validation set</option>
+            </param>
+            <when value="none">
+                <param name="dummy_st_none" type="hidden" value="true" />
+            </when>
+            <when value="manual">
+                <param name="superTestSamples" type="text" label="IDs of the samples from the external validation set" help="Enter the IDs separated by commas (e.g., S1,S4,S7)">
+                    <validator type="empty_field" message="Please provide the IDs for the external validation set" />
+                </param>
+            </when>
+            <when value="stratified">
+                <param name="superTestSize" type="float" value="0.1" min="0.01" max="0.99" label="Proportion of the external validation set" help="Fraction of reserved samples (e.g., 0.1 = 10%)" />
+            </when>
+        </conditional>
+    </xml>
+
+    <xml name="macro_advanced_params">
+        
+        <conditional name="advCpt">
+            <param name="opcC" type="select" label="Advanced computational parameters" refresh_on_change="true">
+                <option value="default" selected="true">Use default</option>
+                <option value="full">Full parameter list</option>
+            </param>
+            <when value="default">
+                <param name="dummy_adv_default" type="hidden" value="true" />
+            </when>
+            <when value="full">
+                <param name="shuffle" type="boolean" truevalue="True" falsevalue="False" checked="true" label="Shuffle data before split" />
+                <param name="seedList" type="text" value="42" label="Seed list" help="Enter one or more seeds separated by commas (e.g. 32,36,46)" />
+            </when>
+        </conditional>
+    </xml>
+
+    <xml name="macro_split_methods">
+        <conditional name="splitMethodCond">
+            <param name="splitMethod" type="select" label="Step 3 — Split Method" help="Algorithm used to partition the data" refresh_on_change="true">
+                <option value="holdout" selected="true">Holdout</option>
+                <option value="holdout_strat">Holdout stratified</option>
+                <option value="kfold">K-Fold</option>
+                <option value="kfold_strat">K-Fold stratified</option>
+                <option value="loo">Leave-One-Out (LOOCV)</option>
+            </param>
+            <when value="holdout_strat">
+                <param name="testSize" type="float" value="0.25" min="0.01" max="0.99" label="Test size" />
+                <expand macro="macro_advanced_params" />
+            </when>
+            <when value="holdout">
+                <param name="testSize" type="float" value="0.25" min="0.01" max="0.99" label="Test size" />
+                <expand macro="macro_advanced_params" />
+            </when>
+            <when value="kfold_strat">
+                <param name="nSplits" type="integer" value="5" min="2" label="Number of folds (K)" />
+                <expand macro="macro_advanced_params" />
+            </when>
+            <when value="kfold">
+                <param name="nSplits" type="integer" value="5" min="2" label="Number of folds (K)" />
+                <expand macro="macro_advanced_params" />
+            </when>
+            <when value="loo">
+                <param name="dummy_loo" type="hidden" value="true" />
+            </when>
+        </conditional>
+    </xml>
+
+    <xml name="input_files">
+        <param name="dataMatrix" type="data" format="tabular" label="Data Matrix" help="Variables x Samples" />
+        <param name="sampleMeta" type="data" format="tabular" label="Sample Metadata" help="Information about the samples" />
+        <param name="varMeta" type="data" format="tabular" label="Variable Metadata" help="Information about the variables" />
+    </xml>
+
+    <xml name="response_col">
+        <param name="responseCol" type="data_column" data_ref="sampleMeta" use_header_names="true" multiple="true" display="checkboxes" label="Target column(s)" />
+    </xml>
+
+    <xml name="conditional_partition_mode">
+        <conditional name="pModeCond">
+            <param name="partitionMode" type="select" label="Partitioning mode" help="Manual: Uses 'partition' column. Automatic: Tool generates split." refresh_on_change="true">
+                <option value="auto" selected="true">Automatic</option>
+                <option value="manual">Manual</option>
+            </param>
+            <when value="manual">
+                <param name="dummy_manual" type="hidden" value="true" />
+            </when>
+            <when value="auto">
+                <conditional name="selectionModeCond">
+                    <param name="selectionMode" type="select" label="Step 1 — How to define the work set?" refresh_on_change="true">
+                        <option value="all" selected="true">Use all the samples</option>
+                        <option value="selected">Manual : Select samples </option>
+                    </param>
+                    <when value="all">
+                        <expand macro="macro_super_test" />
+                        <expand macro="macro_split_methods" />
+                    </when>
+                    <when value="selected">
+                        <param name="selectedSamples" type="text" label="IDs of the selected samples">
+                            <validator type="empty_field" message="Please provide at least one sample ID" />
+                        </param>
+                        <conditional name="selectedRoleCond">
+                            <param name="selectedRole" type="select" label="Role of selected samples" refresh_on_change="true">
+                                <option value="split_set" selected="true">Split pool (others excluded)</option>
+                                <option value="test">Test set (others used for training)</option>
+                            </param>
+                            <when value="split_set">
+                                <expand macro="macro_super_test" />
+                                <expand macro="macro_split_methods" />
+                            </when>
+                            <when value="test">
+                                <param name="dummy_role_test" type="hidden" value="true" />
+                            </when>
+                        </conditional>
+                    </when>
+                </conditional>
+            </when>
+        </conditional>
+    </xml>
+
+    <xml name="outputs">
+
+        <data name="sampleOut"
+            label="${modelType.upper()}_${responseCol}_partitioned_samples"
+            format="tsv" />
+
+        <data name="reportOut"
+            label="${modelType.upper()}_${responseCol}_partition_parameters"
+            format="tsv" />
+
+        <data name="metricsOut"
+            label="${modelType.upper()}_${responseCol}_metrics.tsv"
+            format="tsv" />
+
+        <data name="coefficientsOut"
+            label="${modelType.upper()}_${responseCol}_coefficients.tsv"
+            format="tsv" />
+
+        <!-- visualization -->
+        <data name="visualizationOut"
+            label="${modelType.upper()}_${responseCol}_visualization.png"
+            format="png" />
+
+    </xml>
+
+    <!-- ════════════════════════════════════════════════════════════
+         ML — Advanced computational parameters
+         Same pattern as macro_advanced_params for split
+    ════════════════════════════════════════════════════════════ -->
+    <xml name="macro_regularization_advanced_options">
+
+        <!-- LEVEL 4 — Advanced parameters -->
+        <conditional name="advancedMLCond">
+            <param name="advancedML"
+                type="select"
+                label="Advanced parameters"
+                refresh_on_change="true">
+                <option value="default" selected="true">Use recommended settings</option>
+                <option value="custom">Customize advanced parameters</option>
+            </param>
+
+            <when value="default">
+                <param name="dummy_adv_ml_default" type="hidden" value="true" />
+            </when>
+
+            <when value="custom">
+
+                <param name="alpha"
+                    type="float"
+                    optional="true"
+                    label="Alpha (optional)"
+                    help="Leave empty to automatically select alpha using internal cross-validation. Provide a value to use a fixed alpha." />
+
+                <param name="cvFolds"
+                    type="integer"
+                    value="10"
+                    min="2"
+                    max="20"
+                    label="Internal CV folds"
+                    help="Used only when alpha is empty and automatic alpha tuning is performed." />
+
+                
+            </when>
+        </conditional>
+
+    </xml>
+
+
+    <!-- ════════════════════════════════════════════════════════════
+         ML — Main conditional
+         taskTypeCond → modelTypeCond → advCptML
+    ════════════════════════════════════════════════════════════ -->
+    <xml name="macro_gridsearch_cv_options">
+        <param name="cvFolds"
+            type="integer"
+            value="10"
+            min="2"
+            max="20"
+            label="Internal CV folds"
+            help="Used by GridSearchCV to tune model hyperparameters." />
+    </xml>
+
+    <xml name="macro_linear_logistic_options">
+
+        <conditional name="regularizationCond">
+
+            <param name="regularization"
+                type="select"
+                label="Regularization"
+                refresh_on_change="true">
+
+                <option value="none" selected="true">
+                    No regularization
+                </option>
+
+                <option value="l2">
+                    Ridge (L2)
+                </option>
+
+                <option value="l1">
+                    Lasso (L1)
+                </option>
+
+                <option value="elasticnet">
+                    ElasticNet (L1 + L2)
+                </option>
+
+            </param>
+
+            <when value="none">
+                <param name="dummy_none" type="hidden" value="true" />
+            </when>
+
+            <when value="l2">
+                <param name="cvFolds"
+                    type="integer"
+                    value="10"
+                    min="2"
+                    max="20"
+                    label="Internal CV folds" />
+            </when>
+
+            <when value="l1">
+                <param name="cvFolds"
+                    type="integer"
+                    value="10"
+                    min="2"
+                    max="20"
+                    label="Internal CV folds" />
+            </when>
+
+            <when value="elasticnet">
+                <param name="cvFolds"
+                    type="integer"
+                    value="10"
+                    min="2"
+                    max="20"
+                    label="Internal CV folds" />
+            </when>
+
+        </conditional>
+
+    </xml>
+    <xml name="conditional_ml">
+
+        <conditional name="taskTypeCond">
+            <param name="taskType"
+                type="select"
+                label="Task type"
+                refresh_on_change="true">
+                <option value="regression" selected="true">Regression</option>
+                <option value="classification">Classification</option>
+            </param>
+
+            <when value="regression">
+                <conditional name="modelTypeCond">
+                    <param name="modelType"
+                        type="select"
+                        label="Model family"
+                        refresh_on_change="true">
+                        <option value="linear" selected="true">Linear regression</option>
+                        <option value="rf">Random Forest regression CV</option>
+                        <option value="knn">KNN regression CV</option>
+                        <option value="tree">Decision Tree regression CV</option>
+                        <option value="svm">SVM regression CV</option>
+                    </param>
+
+                    <when value="linear">
+                        <expand macro="macro_linear_logistic_options" />
+                    </when>
+
+                    <when value="rf">
+                        <expand macro="macro_gridsearch_cv_options" />
+                    </when>
+
+                    <when value="knn">
+                        <expand macro="macro_gridsearch_cv_options" />
+                    </when>
+
+                    <when value="tree">
+                        <expand macro="macro_gridsearch_cv_options" />
+                    </when>
+
+                    <when value="svm">
+                        <expand macro="macro_gridsearch_cv_options" />
+                    </when>
+                </conditional>
+            </when>
+
+            <when value="classification">
+                <conditional name="modelTypeCond">
+                    <param name="modelType"
+                        type="select"
+                        label="Model family"
+                        refresh_on_change="true">
+                        <option value="logistic" selected="true">Logistic regression</option>
+                        <option value="rf">Random Forest classification CV</option>
+                        <option value="knn">KNN classification CV</option>
+                        <option value="tree">Decision Tree classification CV</option>
+                        <option value="svm">SVM classification CV</option>
+                    </param>
+
+                    <when value="logistic">
+                        <expand macro="macro_linear_logistic_options" />
+                    </when>
+
+                    <when value="rf">
+                        <expand macro="macro_gridsearch_cv_options" />
+                    </when>
+
+                    <when value="knn">
+                        <expand macro="macro_gridsearch_cv_options" />
+                    </when>
+
+                    <when value="tree">
+                        <expand macro="macro_gridsearch_cv_options" />
+                    </when>
+
+                    <when value="svm">
+                        <expand macro="macro_gridsearch_cv_options" />
+                    </when>
+                </conditional>
+            </when>
+        </conditional>
+    </xml>
+</macros>
