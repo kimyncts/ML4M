@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tool id="ml4m_partition" name="ML4M" version="@TOOL_VERSION@+galaxy@WRAPPER_VERSION@" profile="24.2">
+    <description>Machine Learning for metabolomics</description>
+
+    <macros>
+        <import>macros.xml</import>
+    </macros>
+
+    <expand macro="requirements" />
+    <expand macro="stdio" />
+
+    <command><![CDATA[
+        python '$__tool_directory__/ml4m_tool.py'
+
+        ## ── Input Files ──
+        --dataMatrix "$dataMatrix"
+        --sampleMeta "$sampleMeta"
+        --varMeta "$varMeta"
+        --responseCol "$responseCol"
+        --sampleOut "$sampleOut"
+        --reportOut "$reportOut"
+        --metricsOut "$metricsOut"
+        --coefficientsOut "$coefficientsOut"
+
+        ## ── visualization ──────────────────────────
+        --visualizationOut "$visualizationOut"
+
+        ## ── ML Parameters ──────────────────────────
+        --nRepeats "$nRepeats"
+        --taskType "$taskTypeCond.taskType"
+        --modelType "$taskTypeCond.modelTypeCond.modelType"
+
+        #if $taskTypeCond.modelTypeCond.modelType == "linear" or $taskTypeCond.modelTypeCond.modelType == "logistic"
+
+            #set $reg = $taskTypeCond.modelTypeCond.regularizationCond
+            #set $regularization = $reg.regularization
+
+            --regularization "$regularization"
+
+            #if $regularization == "none"
+                --paramMode "default"
+                --alphaMode "manual"
+            #else
+                --paramMode "advanced"
+                --alphaMode "automatic"
+                --cvFolds "$reg.cvFolds"
+            #end if
+
+        #else
+
+            --paramMode "default"
+            --regularization "none"
+            --alphaMode "manual"
+            --cvFolds "$taskTypeCond.modelTypeCond.cvFolds"
+
+        #end if
+
+        ## ── Partitioning Mode ──
+        --partitionMode "$pModeCond.partitionMode"
+
+        #if $pModeCond.partitionMode == "auto"
+            ## ── Step 1: Selection Mode ──
+            --selectionMode "$pModeCond.selectionModeCond.selectionMode"
+
+            #if $pModeCond.selectionModeCond.selectionMode == "selected"
+                --selectedSamples "$pModeCond.selectionModeCond.selectedSamples"
+                --selectedRole "$pModeCond.selectionModeCond.selectedRoleCond.selectedRole"
+            #end if
+
+            ## ── Step 2 & 3 Logic ──
+            ## We define a helper for the current "active" node to simplify the code
+            #set $node = $pModeCond.selectionModeCond
+            #if $node.selectionMode == "selected"
+                #if $node.selectedRoleCond.selectedRole == "split_set"
+                    #set $active_split = $node.selectedRoleCond
+                #else
+                    #set $active_split = None
+                #end if
+            #else
+                #set $active_split = $node
+            #end if
+
+            #if $active_split
+                ## Step 2: Super Test
+                --superTestMode "$active_split.superTestCond.superTestMode"
+                #if $active_split.superTestCond.superTestMode == "manual"
+                    --superTestSamples "$active_split.superTestCond.superTestSamples"
+                #elif $active_split.superTestCond.superTestMode == "stratified"
+                    --superTestSize "$active_split.superTestCond.superTestSize"
+                #end if
+
+                ## Step 3: Split Method
+                #set $method_cond = $active_split.splitMethodCond
+                --splitMethod "$method_cond.splitMethod"
+
+                #if $method_cond.splitMethod in ["holdout", "holdout_strat"]
+                    --testSize "$method_cond.testSize"
+                #elif $method_cond.splitMethod in ["kfold", "kfold_strat"]
+                    --nSplits "$method_cond.nSplits"
+                #end if
+
+                ## Step 4: Advanced Params (Hidden for LOOCV)
+                #if $method_cond.splitMethod != "loo"
+                    --advMode "$method_cond.advCpt.opcC"
+                    #if $method_cond.advCpt.opcC == "full"
+                        --shuffle "$method_cond.advCpt.shuffle"
+                        --seedList "$method_cond.advCpt.seedList"
+                    #end if
+                #else
+                    --advMode "default"
+                #end if
+            #else
+                ## Case: selected samples with role 'test' (fixed set)
+                --superTestMode "none"
+                --splitMethod "NONE"
+            #end if
+        #end if
+    ]]></command>
+
+    <inputs>
+        <expand macro="input_files" />
+        <expand macro="response_col" />
+        <expand macro="macro_n_repeats" />
+        <expand macro="conditional_partition_mode" />
+        <expand macro="conditional_ml" />
+    </inputs>
+
+    <outputs>
+        <expand macro="outputs" />
+    </outputs>
+
+    <tests>
+        <test>
+            <param name="dataMatrix"  value="test_data.tsv" />
+            <param name="sampleMeta"  value="test_sample_partition.tsv" />
+            <param name="varMeta"     value="test_var.tsv" />
+            <param name="responseCol" value="3" />
+            <conditional name="pModeCond">
+                <param name="partitionMode" value="manual" />
+            </conditional>
+            <conditional name="taskTypeCond">
+                <param name="taskType" value="regression" />
+                <conditional name="modelTypeCond">
+                    <param name="modelType" value="linear" />
+                    <conditional name="regularizationCond">
+                        <param name="regularization" value="none" />
+                    </conditional>
+                </conditional>
+            </conditional>
+            <output name="sampleOut">
+                <assert_contents><has_n_columns n="4" /></assert_contents>
+            </output>
+            <output name="metricsOut">
+                <assert_contents><has_n_columns n="10" /></assert_contents>
+            </output>
+            <output name="coefficientsOut">
+                <assert_contents><has_n_columns n="11" /></assert_contents>
+            </output>
+        </test>
+    </tests>
+
+    <help>
+    
+
+    .. class:: infomark
+
+**ML4M Data Partitioning**
+
+This tool allows partitioning a dataset into training, test, 
+and optionally external validation sets, 
+for the purpose of machine learning analysis.
+
+-----------
+Input files
+-----------
+
++---------------------------+------------+
+| Fichier                   |   Format   |
++===========================+============+
+| 1)  Data Matrix           |   tabular  |
++---------------------------+------------+
+| 2)  Sample Metadata       |   tabular  |
++---------------------------+------------+
+| 3)  Variable Metadata     |   tabular  |
++---------------------------+------------+
+
+----------
+Parameters
+----------
+
+**Partitioning Mode**
+- *Manual*: the "partition" column of sampleMeta is used directly.
+The allowed values are "train", "test", "super_test".
+- *Automatic*: the partition is calculated according to the parameters below.
+
+**Step 1 — Working Set**
+- *All samples*: the entire universe is used as the split pool.
+- *Manual selection*: enter the IDs separated by commas (e.g., S1,S2,S3).
+Then choose their role: split pool or fixed test set.
+
+**Step 2 — External validation**
+- *None*: no reservation.
+- *Manual*: enter the IDs of the samples to reserve.
+- *Stratified automatic* : indicate the proportion to reserve.
+
+**Step 3 — Split Method**
+- *Holdout*: simple train/test split.
+- *Stratified holdout*: train/test split respecting the distribution of the response.
+- *K-Fold*: K-fold cross-validation.
+- *Stratified K-Fold*: cross-validation respecting the distribution of the response.
+- *LOOCV*: Leave-One-Out. Each sample serves as a test once. class:: warningmark
+Attention: very slow on large datasets ( > 100 samples).
+
+**Step 4 — Machine Learning Method**
+
+------------
+Output files
+------------
+
+**Advanced Settings**
+- *Use default*: ``shuffle=True`` and a seed per target is derived automatically.
+- *Full parameter list*: allows you to choose ``shuffle`` and a ``seedList``.
+
+sampleOut.tabular
+Enriched metadata file with a column ``split_[phenotype]`` indicating for each sample its role: ``train``, ``test``, ``super_test`` or ``excluded``.
+
+sampleOut_parameter.tabular
+Traceability table containing the target column and the parameters used.
+
+    </help>
+
+    <citations>
+        <citation type="doi">10.1038/s41586-020-2649-2</citation>
+        <citation type="doi">10.5281/zenodo.5121404</citation>
+    </citations>
+</tool>
