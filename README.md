@@ -31,4 +31,11 @@ ML4M trains and evaluates the selected models and generates several outputs:
 
 ### Gallery / Demo
 
+### Input Configuration
+
 [<img width="1634" height="926" alt="ML4M Tool" src="https://github.com/user-attachments/assets/a0b30c67-d45d-4460-b04f-f6157d4563a8" />](https://github.com/kimyncts/ML4M/raw/refs/heads/main/videos/ML4M_tool.mp4)
+
+### Output Results
+
+[<img width="1634" height="926" alt="ML4M Output" src="https://github.com/user-attachments/assets/cd71bfd6-016a-46af-99d0-6957c77e3ccc" />](https://github.com/kimyncts/ML4M/raw/refs/heads/main/videos/ML4M_output.mp4)
+
