@@ -1,6 +1,6 @@
 # ML4M – Machine Learning for Metabolomics
 
-ML4M is a Python-based tool developed during an internship at INRAE (UMR BFP, META team) to facilitate supervised machine learning analysis of metabolomics data.
+ML4M is a Python-based tool developed during my work at INRAE (UMR BFP, META team) to facilitate supervised machine learning analysis of metabolomics data.
 
 Integrated into the **Galaxy platform** using **Planemo**, ML4M enables users to train, validate, and evaluate machine learning models for phenotype prediction from high-dimensional metabolomics datasets, without requiring programming skills.
 
@@ -39,3 +39,5 @@ ML4M trains and evaluates the selected models and generates several outputs:
 
 [<img width="1634" height="926" alt="ML4M Output" src="https://github.com/user-attachments/assets/cd71bfd6-016a-46af-99d0-6957c77e3ccc" />](https://github.com/kimyncts/ML4M/raw/refs/heads/main/videos/ML4M_output.mp4)
 
+
+By: Kimsay Nacitas
