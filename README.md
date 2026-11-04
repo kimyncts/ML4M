@@ -28,3 +28,7 @@ ML4M trains and evaluates the selected models and generates several outputs:
 - A summary report.
 
 **Technologies:** Python, Galaxy, Planemo, Linux.
+
+### Gallery / Demo
+
+[<img width="1634" height="926" alt="ML4M Tool" src="https://github.com/user-attachments/assets/a0b30c67-d45d-4460-b04f-f6157d4563a8" />](https://github.com/kimyncts/ML4M/raw/refs/heads/main/videos/ML4M_tool.mp4)
